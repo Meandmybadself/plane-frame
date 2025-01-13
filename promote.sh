@@ -1,0 +1,1 @@
+rsync -av . planeframe:/home/jeffery/planeframe --exclude .git
