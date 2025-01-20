@@ -1,6 +1,28 @@
 import logging
 import requests
 from math import radians, sin, cos, sqrt, asin
+import json
+
+# open airports.json
+with open('./data/airports.json', 'r') as file:
+    airports = json.load(file)
+
+# open airlines.json
+with open('./data/airlines.json', 'r') as file:
+    airlines = json.load(file)
+
+def clean_airport_name(airport_name):
+    # create a list of words to remove
+    words_to_remove = [' / Wold–Chamberlain Field']
+    for word in words_to_remove:
+        if word in airport_name:
+            airport_name = airport_name.replace(word, '')
+    return airport_name
+
+def clean_airport_code(airport_code):
+    if len(airport_code) == 4: 
+        airport_code = airport_code[1:]
+    return airport_code
 
 def get_route_by_callsign(flight_number):
     """
@@ -14,42 +36,59 @@ def get_route_by_callsign(flight_number):
     """
     try:
         flight_number = flight_number.strip()
-        closest_aircraft_url = f'https://api.adsbdb.com/v0/callsign/{flight_number}'
+        closest_aircraft_url = f'https://api.adsb.lol/api/0/routeset'
         logging.info(f'Aircraft Details URL: {closest_aircraft_url}')
-        closest_aircraft_response = requests.get(closest_aircraft_url)
+
+        # Prepare request body
+        request_body = {
+            "planes": [
+                {
+                    "callsign": flight_number,
+                    "lat": 0,
+                    "lng": 0
+                }
+            ]
+        }
+        
+        closest_aircraft_response = requests.post(closest_aircraft_url, json=request_body)
         
         if closest_aircraft_response.status_code != 200:
             logging.warning(f'API returned status code: {closest_aircraft_response.status_code}')
             return None
             
         closest_aircraft_data = closest_aircraft_response.json()
-        
-        if 'response' in closest_aircraft_data and 'flightroute' in closest_aircraft_data['response']:
-            flight_info = closest_aircraft_data['response']['flightroute']
-            
-            return {
-                'from': flight_info.get('origin', {}).get('iata_code'),
-                'to': flight_info.get('destination', {}).get('iata_code'),
-                'flight': flight_number,
-                'airline': flight_info.get('airline', {}).get('name'),
-                'origin': flight_info.get('origin', {}).get('municipality'),
-                'origin_name': flight_info.get('origin', {}).get('name'),
-                'origin_lat': flight_info.get('origin', {}).get('latitude'),
-                'origin_lon': flight_info.get('origin', {}).get('longitude'),
-                'destination': flight_info.get('destination', {}).get('municipality'), 
-                'destination_name': flight_info.get('destination', {}).get('name'),
-                'destination_lat': flight_info.get('destination', {}).get('latitude'),
-                'destination_lon': flight_info.get('destination', {}).get('longitude'),
-                'altitude': flight_info.get('altitude'),
-                'speed': flight_info.get('speed'),
-                'type': flight_info.get('type'),
-                'route': flight_info.get('route')
-            }
+
+        # Handle new response format
+        if isinstance(closest_aircraft_data, list) and len(closest_aircraft_data) > 0:
+            route_info = closest_aircraft_data[0]
+            if 'airport_codes' in route_info:
+                # Clean and split airport codes
+                airport_codes = route_info['airport_codes'].replace('?', '').replace(' ', '')
+                legs = airport_codes.split('-') 
+                route_legs = []
+                
+                for airport_code in legs:
+                    if airport_code in airports:
+                        airport_data = airports[airport_code]
+                        route_legs.append({
+                            'code': clean_airport_code(airport_code),
+                            'name': clean_airport_name(airport_data['name']),
+                            'latitude': airport_data['latitude_deg'],
+                            'longitude': airport_data['longitude_deg']
+                        })
+
+                route = {
+                    'flight_number': flight_number,
+                    'airline': airlines[route_info.get('airline_code')] if route_info.get('airline_code') in airlines else '',
+                    'legs': route_legs
+                }
+                
+                return route
         return None
     except Exception as e:
         logging.error(f'Failed to fetch aircraft data: {e}')
         return None
-
+    
 def haversine(lat1, lon1, lat2, lon2):
     """
     Calculate the great circle distance between two points on Earth.

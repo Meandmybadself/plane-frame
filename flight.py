@@ -1,17 +1,19 @@
 from math import radians, sin, cos, sqrt, atan2
 
-def calculate_flight_progress(flight_data):
+def calculate_flight_progress(route_data):
     """
-    Calculate the relative progress of an aircraft between origin and destination.
+    Calculate the relative progress of an aircraft along a multi-leg route.
     
     Args:
-        flight_data (dict): Dictionary containing flight information with the following keys:
-            - origin_lat: Origin latitude
-            - origin_lon: Origin longitude
-            - destination_lat: Destination latitude
-            - destination_lon: Destination longitude
-            - aircraft_lat: Current aircraft latitude
-            - aircraft_lon: Current aircraft longitude
+        route_data (dict): Dictionary containing flight information with the following structure:
+            {
+                'legs': [
+                    {'latitude': float, 'longitude': float},  # Origin
+                    {'latitude': float, 'longitude': float}   # Destination
+                ],
+                'aircraft_lat': float,  # Current aircraft latitude
+                'aircraft_lon': float   # Current aircraft longitude
+            }
             
     Returns:
         float: A number between 0 and 1 representing the relative position of the aircraft
@@ -46,19 +48,19 @@ def calculate_flight_progress(flight_data):
         return c * r
     
     # Extract coordinates
-    origin_lat = flight_data['origin_lat']
-    origin_lon = flight_data['origin_lon']
-    dest_lat = flight_data['destination_lat']
-    dest_lon = flight_data['destination_lon']
-    aircraft_lat = flight_data['aircraft_lat']
-    aircraft_lon = flight_data['aircraft_lon']
+    origin_lat = route_data['legs'][0]['latitude']
+    origin_lon = route_data['legs'][0]['longitude']
+    dest_lat = route_data['legs'][1]['latitude']
+    dest_lon = route_data['legs'][1]['longitude']
+    aircraft_lat = float(route_data['aircraft_lat'])
+    aircraft_lon = float(route_data['aircraft_lon'])
     
     # Calculate distances
     total_distance = haversine_distance(origin_lat, origin_lon, dest_lat, dest_lon)
     distance_traveled = haversine_distance(origin_lat, origin_lon, aircraft_lat, aircraft_lon)
     
     # Calculate progress ratio
-    progress = distance_traveled / total_distance
+    progress = distance_traveled / total_distance if total_distance > 0 else 0
     
     # Ensure the result is between 0 and 1
     return max(0, min(1, progress))
