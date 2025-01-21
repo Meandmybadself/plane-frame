@@ -11,3 +11,9 @@ requests==2.32.3
 smbus2==0.5.0
 spidev==3.6
 urllib3==2.3.0
+
+-r requirements.txt
+pytest>=7.0.0
+black>=23.0.0
+mypy>=1.0.0
+pylint>=3.0.0

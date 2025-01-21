@@ -55,7 +55,8 @@ def get_route_by_callsign(flight_number):
         if closest_aircraft_response.status_code != 200:
             logging.warning(f'API returned status code: {closest_aircraft_response.status_code}')
             return None
-            
+        
+        logging.info(f'Aircraft Details Response: {closest_aircraft_response.json()}')
         closest_aircraft_data = closest_aircraft_response.json()
 
         # Handle new response format
